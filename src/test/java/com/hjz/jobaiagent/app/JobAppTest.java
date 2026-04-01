@@ -37,4 +37,12 @@ class JobAppTest {
         JobApp.JobReport jobReport = jobApp.doChatWithReport(message, chatId);
         Assertions.assertNotNull(jobReport);
     }
+
+    @Test
+    void doChatWithRag() {
+        String chatId = java.util.UUID.randomUUID().toString();
+        String message = "软件工程校招的岗位方向众多，应届生该怎么选择适合自己的岗位？";
+        String answer = jobApp.doChatWithRag(message, chatId);
+        Assertions.assertNotNull(answer);
+    }
 }

@@ -4,13 +4,17 @@ package com.hjz.jobaiagent.app;
 import com.hjz.jobaiagent.advisor.MyLoggerAdvisor;
 import com.hjz.jobaiagent.advisor.ReReadingAdvisor;
 import com.hjz.jobaiagent.chatmemory.FileBasedChatMemory;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.QuestionAnswerAdvisor;
+import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -49,8 +53,6 @@ public class JobApp {
                 )
                 .build();
     }
-
-
 
     /**
      * 用户进行对话，传入用户消息和对话ID，返回模型回复。支持多轮对话
@@ -94,5 +96,40 @@ public class JobApp {
                 .entity(JobReport.class);
         log.info("jobReport: {}", jobReport);
         return jobReport;
+    }
+
+    // AI 就业本地文档问答
+    @Resource
+    private VectorStore jobAppVectorStore;
+
+    // 云端 RAG 检索增强服务（阿里百炼平台）
+    @Resource
+    private Advisor jobAppRagCloudAdvisor;
+
+    /**
+     * RAG 知识库问答
+     * @param message
+     * @param chatId
+     * @return
+     */
+    public String doChatWithRag(String message, String chatId) {
+        ChatResponse response = chatClient
+                .prompt()
+                .user(message)
+                .advisors(spec -> spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, chatId)   //spec相当于Map
+                        .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
+                // 开启日志，便于调试
+                .advisors(new MyLoggerAdvisor())
+
+                // 应用 RAG 本地文档问答
+//                .advisors(new QuestionAnswerAdvisor(jobAppVectorStore))
+                // 应用 RAG 检索增强服务（基于云端阿里百炼平台）
+                .advisors(jobAppRagCloudAdvisor)
+
+                .call()
+                .chatResponse();
+        String content = response.getResult().getOutput().getText();
+        log.info("content: {}", content);
+        return content;
     }
 }
