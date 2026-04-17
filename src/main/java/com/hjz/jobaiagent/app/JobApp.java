@@ -4,6 +4,8 @@ package com.hjz.jobaiagent.app;
 import com.hjz.jobaiagent.advisor.MyLoggerAdvisor;
 import com.hjz.jobaiagent.advisor.ReReadingAdvisor;
 import com.hjz.jobaiagent.chatmemory.FileBasedChatMemory;
+import com.hjz.jobaiagent.rag.JobAppRagCustomAdvisorFactory;
+import com.hjz.jobaiagent.rag.QueryRewriter;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -106,6 +108,13 @@ public class JobApp {
     @Resource
     private Advisor jobAppRagCloudAdvisor;
 
+    // PGvector 向量存储 RAG 检索增强服务
+    @Resource
+    private VectorStore pgVectorVectorStore;
+
+    @Resource
+    private QueryRewriter queryRewriter;
+
     /**
      * RAG 知识库问答
      * @param message
@@ -113,18 +122,26 @@ public class JobApp {
      * @return
      */
     public String doChatWithRag(String message, String chatId) {
+        // 执行查询重写
+        String rewrittenMessage = queryRewriter.doQueryRewrite(message);
+
         ChatResponse response = chatClient
                 .prompt()
-                .user(message)
+                // 重写后的用户消息
+                .user(rewrittenMessage)
                 .advisors(spec -> spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, chatId)   //spec相当于Map
                         .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
                 // 开启日志，便于调试
                 .advisors(new MyLoggerAdvisor())
 
                 // 应用 RAG 本地文档问答
-//                .advisors(new QuestionAnswerAdvisor(jobAppVectorStore))
+                .advisors(new QuestionAnswerAdvisor(jobAppVectorStore))
                 // 应用 RAG 检索增强服务（基于云端阿里百炼平台）
-                .advisors(jobAppRagCloudAdvisor)
+//                .advisors(jobAppRagCloudAdvisor)
+                // 应用 RAG 检索增强服务（基于 PGvector 向量存储）
+//                .advisors(new QuestionAnswerAdvisor(pgVectorVectorStore))
+                // 应用自定义的 RAG 检索增强顾问（文档查询 + 上下文增强）
+//                .advisors(JobAppRagCustomAdvisorFactory.createJobAppRagCustomAdvisor(jobAppVectorStore,"美食"))
 
                 .call()
                 .chatResponse();

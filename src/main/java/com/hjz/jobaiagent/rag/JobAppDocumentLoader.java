@@ -38,11 +38,14 @@ public class JobAppDocumentLoader {
             Resource[] resources = resourcePatternResolver.getResources("classpath:document/*.md");
             for (Resource resource : resources) {
                 String fileName = resource.getFilename();
+                String status = fileName.substring(fileName.length() - 11, fileName.length() - 5);  // 提取文档文件名倒数第11个字符到第数第5个字符，例：校招入门准备
                 MarkdownDocumentReaderConfig config = MarkdownDocumentReaderConfig.builder()
                         .withHorizontalRuleCreateDocument(true)
                         .withIncludeCodeBlock(false)
                         .withIncludeBlockquote(false)
                         .withAdditionalMetadata("filename", fileName)   // 文件名保存为额外信息
+                        .withAdditionalMetadata("status", status)   // 标签保存为额外信息，例：校招入门准备
+
                         .build();
                 MarkdownDocumentReader markdownDocumentReader  = new MarkdownDocumentReader(resource, config);
                 allDocuments.addAll(markdownDocumentReader .get());
