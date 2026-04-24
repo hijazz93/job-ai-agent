@@ -164,8 +164,13 @@
             <artifactId>spring-ai-mcp-client-spring-boot-starter</artifactId>
             <version>1.0.0-M6</version>
         </dependency>
-
-
+        <!-- Image-search-mcp -->
+        <dependency>
+            <groupId>com.hjz</groupId>
+            <artifactId>job-image-search-mcp-server</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
 
 
     </dependencies>
