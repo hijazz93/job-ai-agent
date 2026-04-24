@@ -33,7 +33,7 @@ public class PDFGenerationTool {
             try (PdfWriter writer = new PdfWriter(filePath);
                  PdfDocument pdf = new PdfDocument(writer);
                  Document document = new Document(pdf)) {
-                PdfFont font = PdfFontFactory.createFont("STSongStd-Light", "UniGB-UCS2-H");
+                PdfFont font = PdfFontFactory.createFont("C:/Windows/Fonts/msyh.ttc,0", "Identity-H", PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
                 document.setFont(font);
 
                 Paragraph textParagraph = new Paragraph(content);
