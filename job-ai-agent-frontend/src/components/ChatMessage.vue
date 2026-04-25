@@ -1,40 +1,59 @@
 <template>
   <div :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']">
-    <div class="message-avatar">
-      <div v-if="message.role === 'user'" class="avatar user-avatar">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-        </svg>
-      </div>
-      <div v-else class="avatar ai-avatar">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M21 10.12h-6.78l2.74-2.82c-2.73-2.7-7.15-2.8-9.88-.1-2.73 2.71-2.73 7.08 0 9.79s7.15 2.71 9.88 0C18.32 15.65 19 14.08 19 12.1h2c0 1.98-.88 4.55-2.64 6.29-3.51 3.48-9.21 3.48-12.72 0-3.5-3.47-3.53-9.11-.02-12.58s9.14-3.47 12.65 0L21 3v7.12z"/>
-        </svg>
-      </div>
-    </div>
-    <div class="message-content">
-      <div v-if="message.isStep" class="step-header" @click="toggleCollapse">
-        <div class="step-info">
-          <span class="step-badge">步骤 {{ message.step }}</span>
-          <span class="step-summary">{{ stepSummary }}</span>
-        </div>
-        <div class="step-toggle">
-          <svg v-if="isCollapsed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M7 10l5 5 5-5z"/>
+    <div class="message-inner">
+      <div class="message-avatar">
+        <div v-if="message.role === 'user'" class="avatar user-avatar">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
           </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M7 14l5-5 5 5z"/>
+        </div>
+        <div v-else class="avatar ai-avatar">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+            <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>
           </svg>
         </div>
       </div>
-      <div v-if="!message.isStep || !isCollapsed" class="message-text" v-html="formattedContent"></div>
-      <div v-if="message.isStep && isCollapsed" class="collapsed-hint">点击展开查看详情</div>
-      <div v-if="pdfFiles.length > 0" class="pdf-actions">
-        <div v-for="pdf in pdfFiles" :key="pdf.path" class="pdf-item">
-          <span class="pdf-name">{{ pdf.name }}</span>
-          <div class="pdf-buttons">
-            <a :href="pdf.previewUrl" target="_blank" class="pdf-btn preview">预览</a>
-            <a :href="pdf.downloadUrl" class="pdf-btn download">下载</a>
+      <div class="message-body">
+        <div v-if="message.isStep" class="step-header" @click="toggleCollapse">
+          <div class="step-info">
+            <span class="step-badge">步骤 {{ message.step }}</span>
+            <span class="step-summary">{{ stepSummary }}</span>
+          </div>
+          <div class="step-toggle">
+            <svg v-if="isCollapsed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+              <path d="M7 10l5 5 5-5z"/>
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+              <path d="M7 14l5-5 5 5z"/>
+            </svg>
+          </div>
+        </div>
+        <div v-if="!message.isStep || !isCollapsed" class="message-text" v-html="formattedContent"></div>
+        <div v-if="message.isStep && isCollapsed" class="collapsed-hint">点击展开查看详情</div>
+
+        <div v-if="showActions && message.role === 'assistant'" class="message-actions">
+          <button class="msg-action-btn" @click="copyContent" :title="copied ? '已复制' : '复制'">
+            <svg v-if="!copied" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+            </svg>
+          </button>
+        </div>
+
+        <div v-if="pdfFiles.length > 0" class="pdf-actions">
+          <div v-for="pdf in pdfFiles" :key="pdf.path" class="pdf-item">
+            <div class="pdf-info">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                <path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-1.5v2H13V7h1.5c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"/>
+              </svg>
+              <span class="pdf-name">{{ pdf.name }}</span>
+            </div>
+            <div class="pdf-buttons">
+              <a :href="pdf.previewUrl" target="_blank" class="pdf-btn preview">预览</a>
+              <a :href="pdf.downloadUrl" class="pdf-btn download">下载</a>
+            </div>
           </div>
         </div>
       </div>
@@ -46,46 +65,55 @@
 import { computed, ref } from 'vue'
 
 const props = defineProps({
-  message: {
-    type: Object,
-    required: true
-  }
+  message: { type: Object, required: true }
 })
 
 const isCollapsed = ref(true)
+const copied = ref(false)
 
-const toggleCollapse = () => {
+const showActions = computed(() => {
+  return props.message.role === 'assistant' && props.message.content && !props.message.isStep
+})
+
+function toggleCollapse() {
   isCollapsed.value = !isCollapsed.value
+}
+
+function copyContent() {
+  const text = props.message.content || ''
+  navigator.clipboard.writeText(text).then(() => {
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  }).catch(() => {})
 }
 
 const formattedContent = computed(() => {
   let content = props.message.content || ''
+  content = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  content = content.replace(/```(\w+)?\n?([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
+  content = content.replace(/`([^`]+)`/g, '<code>$1</code>')
+  content = content.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  content = content.replace(/\*(.+?)\*/g, '<em>$1</em>')
   content = content.replace(/\n/g, '<br>')
-  content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-  content = content.replace(/\*(.*?)\*/g, '<em>$1</em>')
-  content = content.replace(/`(.*?)`/g, '<code>$1</code>')
   return content
 })
 
 const stepSummary = computed(() => {
   const content = props.message.content || ''
-  // 提取工具调用或关键动作的摘要
-  // 匹配模式: 使用 [工具], 调用 [工具], 搜索..., 生成...
-  const toolPatterns = [
+  const patterns = [
     /(?:使用|调用|执行)([\w]+)工具/i,
     /(?:正在搜索|搜索关键词):\s*(.+)/i,
     /(?:正在生成|生成)(?:PDF|文件|结果)/i,
     /(?:思考|观察|结果):\s*(.+)/i,
     /(?:读取|写入|下载)(?:到了|成功):\s*(.+)/i,
   ]
-  for (const pattern of toolPatterns) {
+  for (const pattern of patterns) {
     const match = content.match(pattern)
     if (match) {
       const summary = match[1] || match[0]
       return summary.length > 40 ? summary.substring(0, 40) + '...' : summary
     }
   }
-  // 如果没有匹配到模式，返回内容的前50个字符
   const firstLine = content.split('\n')[0]
   return firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine || '执行中...'
 })
@@ -98,8 +126,7 @@ const pdfFiles = computed(() => {
     const path = match[1].replace(/\\/g, '/')
     const name = path.split('/').pop()
     return {
-      name,
-      path,
+      name, path,
       previewUrl: `/api/files/pdf/${encodeURIComponent(name)}`,
       downloadUrl: `/api/files/pdf/${encodeURIComponent(name)}/download`
     }
@@ -109,88 +136,126 @@ const pdfFiles = computed(() => {
 
 <style scoped>
 .message {
+  padding: 16px 0;
+}
+
+.message-inner {
   display: flex;
   gap: 16px;
-  padding: 16px;
-  border-radius: 16px;
-  max-width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 8px;
 }
 
-.user-message {
+.user-message .message-inner {
   flex-direction: row-reverse;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.ai-message {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
 }
 
 .message-avatar {
   flex-shrink: 0;
+  padding-top: 2px;
 }
 
 .avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.avatar svg {
-  width: 24px;
-  height: 24px;
-}
-
 .user-avatar {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
+  background: var(--accent-primary);
+  color: #fff;
 }
 
 .ai-avatar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
-.message-content {
+.message-body {
   flex: 1;
   min-width: 0;
 }
 
+.user-message .message-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
 .message-text {
-  color: #e0e0e0;
-  line-height: 1.6;
+  color: var(--text-primary);
+  line-height: 1.7;
   font-size: 15px;
   word-wrap: break-word;
 }
 
 .user-message .message-text {
-  color: white;
+  background: var(--user-bubble-bg);
+  color: var(--user-bubble-text);
+  padding: 12px 18px;
+  border-radius: var(--radius-lg);
+  border-top-right-radius: 4px;
+  max-width: fit-content;
+}
+
+.message-text :deep(pre) {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  overflow-x: auto;
+  margin: 12px 0;
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .message-text :deep(code) {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--bg-active);
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
   font-size: 13px;
 }
 
-.message-text :deep(strong) {
-  color: #fff;
+.message-text :deep(pre code) {
+  background: transparent;
+  padding: 0;
 }
 
-.step-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 20px;
-  font-size: 12px;
+.message-text :deep(strong) {
   font-weight: 600;
-  color: white;
-  margin-bottom: 8px;
+}
+
+.message-text :deep(em) {
+  font-style: italic;
+}
+
+.message-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.msg-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.msg-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .step-header {
@@ -198,28 +263,42 @@ const pdfFiles = computed(() => {
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  padding: 8px 12px;
-  background: rgba(102, 126, 234, 0.15);
-  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
   margin-bottom: 10px;
-  transition: background 0.2s;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .step-header:hover {
-  background: rgba(102, 126, 234, 0.25);
+  background: var(--bg-card-hover);
+  border-color: var(--border-secondary);
 }
 
 .step-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
   min-width: 0;
 }
 
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: var(--accent-primary);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+}
+
 .step-summary {
   font-size: 13px;
-  color: #b0b0b0;
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -227,97 +306,84 @@ const pdfFiles = computed(() => {
 
 .step-toggle {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #888;
-}
-
-.step-toggle svg {
-  width: 20px;
-  height: 20px;
+  color: var(--text-tertiary);
 }
 
 .collapsed-hint {
   font-size: 12px;
-  color: #666;
-  text-align: center;
-  padding: 4px;
-  margin-bottom: 8px;
+  color: var(--text-disabled);
+  padding: 4px 0;
 }
 
 .pdf-actions {
-  margin-top: 14px;
-  padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.07);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(6px);
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
 }
 
 .pdf-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
+  padding: 8px 0;
 }
 
 .pdf-item:not(:last-child) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.pdf-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-secondary);
 }
 
 .pdf-name {
   font-size: 14px;
-  color: #e0e0e0;
   font-weight: 500;
 }
 
 .pdf-buttons {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
-/* 高级按钮样式 */
 .pdf-btn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   padding: 6px 14px;
-  border-radius: 8px;
+  border-radius: var(--radius-full);
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
-  transition: all 0.25s ease;
-  border: none;
-  cursor: pointer;
-  white-space: nowrap;
+  transition: all var(--transition-fast);
 }
 
-/* 预览按钮 */
 .pdf-btn.preview {
-  background: rgba(46, 204, 113, 0.15);
-  color: #2ecc71;
-  border: 1px solid rgba(46, 204, 113, 0.3);
+  background: rgba(52, 168, 83, 0.12);
+  color: #34a853;
 }
 
-/* 下载按钮 */
-.pdf-btn.download {
-  background: rgba(52, 152, 219, 0.15);
-  color: #3498db;
-  border: 1px solid rgba(52, 152, 219, 0.3);
-}
-
-/* 悬停效果 */
 .pdf-btn.preview:hover {
-  background: rgba(46, 204, 113, 0.25);
-  transform: translateY(-1px);
+  background: rgba(52, 168, 83, 0.22);
+}
+
+.pdf-btn.download {
+  background: rgba(26, 115, 232, 0.12);
+  color: var(--accent-primary);
 }
 
 .pdf-btn.download:hover {
-  background: rgba(52, 152, 219, 0.25);
-  transform: translateY(-1px);
+  background: rgba(26, 115, 232, 0.22);
+}
+
+@media (max-width: 768px) {
+  .message-inner {
+    gap: 10px;
+  }
+  .message-text {
+    font-size: 14px;
+  }
 }
 </style>

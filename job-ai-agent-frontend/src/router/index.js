@@ -1,21 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import JobManusPage from '../views/JobManusPage.vue'
-import JobAppPage from '../views/JobAppPage.vue'
+import ChatPage from '../views/ChatPage.vue'
 
 const routes = [
   {
     path: '/',
-    redirect: '/manus'
-  },
-  {
-    path: '/manus',
-    name: 'JobManus',
-    component: JobManusPage
-  },
-  {
-    path: '/job-app',
-    name: 'JobApp',
-    component: JobAppPage
+    component: ChatPage
   }
 ]
 

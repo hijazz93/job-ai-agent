@@ -37,3 +37,4 @@ build/
 .vscode/
 /job-ai-agent-frontend/node_modules/
 /job-ai-agent-frontend/.claude/
+/.claude/

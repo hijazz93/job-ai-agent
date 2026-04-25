@@ -1,45 +1,54 @@
 <template>
   <div class="job-app-page">
-    <div class="page-header">
-      <h1>AI 就业助手</h1>
-      <p>专业的求职问答助手 - 解答就业相关问题</p>
-    </div>
     <ChatContainer
       :messages="messages"
       :is-streaming="isStreaming"
       @send-message="handleSend"
-    />
+    >
+      <template #input-extra>
+        <label class="agent-toggle" title="切换到 JobManus Agent 模式以使用工具调用功能">
+          <input type="checkbox" :checked="useAgentMode" @change="toggleAgentMode" />
+          <span class="toggle-text">使用Agent模式</span>
+        </label>
+      </template>
+    </ChatContainer>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import ChatContainer from '../components/ChatContainer.vue'
 import { chatWithJobAppSSE } from '../api/chat'
 
+const MESSAGE_STORE_KEY = 'job-ai-cached-messages'
+
+const router = useRouter()
 const messages = ref([])
 const isStreaming = ref(false)
+const useAgentMode = ref(false)
 const chatId = ref('job-app-' + Date.now())
 let currentEventSource = null
 
-const handleSend = (text) => {
+function toggleAgentMode() {
+  useAgentMode.value = !useAgentMode.value
+  if (useAgentMode.value) {
+    sessionStorage.setItem(MESSAGE_STORE_KEY, JSON.stringify(messages.value))
+    router.push('/manus')
+  }
+}
+
+function handleSend(text) {
   if (isStreaming.value) return
 
-  messages.value.push({
-    role: 'user',
-    content: text
-  })
-
+  messages.value.push({ role: 'user', content: text })
   let aiContent = ''
   isStreaming.value = true
 
-  messages.value.push({
-    role: 'assistant',
-    content: ''
-  })
+  messages.value.push({ role: 'assistant', content: '' })
 
   currentEventSource = chatWithJobAppSSE(text, chatId.value, {
-    onMessage: (chunk, full) => {
+    onMessage: (_chunk, full) => {
       aiContent = full
       const lastMessage = messages.value[messages.value.length - 1]
       lastMessage.content = full
@@ -56,6 +65,26 @@ const handleSend = (text) => {
     }
   })
 }
+
+function restoreMessages() {
+  try {
+    const cached = sessionStorage.getItem(MESSAGE_STORE_KEY)
+    if (cached) {
+      messages.value = JSON.parse(cached)
+      sessionStorage.removeItem(MESSAGE_STORE_KEY)
+    }
+  } catch {}
+}
+
+onMounted(() => {
+  restoreMessages()
+})
+
+onUnmounted(() => {
+  if (currentEventSource) {
+    currentEventSource.close()
+  }
+})
 </script>
 
 <style scoped>
@@ -65,26 +94,34 @@ const handleSend = (text) => {
   height: 100%;
 }
 
-.page-header {
-  padding: 24px 32px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(20, 20, 35, 0.5);
+.agent-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  user-select: none;
 }
 
-.page-header h1 {
-  font-size: 28px;
-  font-weight: 700;
-  color: white;
-  margin: 0 0 8px 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.agent-toggle:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-secondary);
 }
 
-.page-header p {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
-  margin: 0;
+.agent-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.toggle-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 </style>

@@ -1,196 +1,282 @@
 <template>
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="logo">
-        <div class="logo-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M21 10.12h-6.78l2.74-2.82c-2.73-2.7-7.15-2.8-9.88-.1-2.73 2.71-2.73 7.08 0 9.79s7.15 2.71 9.88 0C18.32 15.65 19 14.08 19 12.1h2c0 1.98-.88 4.55-2.64 6.29-3.51 3.48-9.21 3.48-12.72 0-3.5-3.47-3.53-9.11-.02-12.58s9.14-3.47 12.65 0L21 3v7.12z"/>
+  <div class="sidebar-wrapper">
+    <div v-if="isOpen" class="sidebar-overlay" @click="$emit('close')"></div>
+    <aside class="sidebar" :class="{ open: isOpen }">
+      <div class="sidebar-top">
+        <button class="new-chat-btn" @click="$emit('new-chat')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
           </svg>
-        </div>
-        <span class="logo-text">Job AI</span>
+          <span>新对话</span>
+        </button>
       </div>
-    </div>
 
-    <nav class="sidebar-nav">
-      <router-link
-        to="/manus"
-        class="nav-item"
-        :class="{ active: $route.path === '/manus' }"
-      >
-        <div class="nav-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17 8c.7 0 1.38.1 2 .29V5c0-1.1-.9-2-2-2H7c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h5.68c-.43-.91-.68-1.93-.68-3 0-3.87 2.97-7 6.65-7 .73 0 1.43.09 2.1.27L17 8z"/>
-          </svg>
+      <nav class="history-list">
+        <div class="history-label">最近对话</div>
+        <div v-if="chats.length === 0" class="history-empty">
+          <span>暂无对话记录</span>
         </div>
-        <div class="nav-content">
-          <span class="nav-title">JobManus</span>
-          <span class="nav-desc">智能规划助手</span>
+        <div
+          v-for="chat in chats"
+          :key="chat.id"
+          class="history-item"
+          :class="{ active: activeId === chat.id }"
+          @click="$emit('select-chat', chat)"
+        >
+          <div class="history-item-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+              <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+            </svg>
+          </div>
+          <span class="history-item-title">{{ chat.title }}</span>
+          <button class="history-item-delete" @click.stop="$emit('delete-chat', chat.id)" title="删除对话">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+          </button>
         </div>
-      </router-link>
+      </nav>
 
-      <router-link
-        to="/job-app"
-        class="nav-item"
-        :class="{ active: $route.path === '/job-app' }"
-      >
-        <div class="nav-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-          </svg>
+      <div class="sidebar-footer">
+        <div class="footer-links">
+          <a href="https://gitee.com/hao-jiazhang" target="_blank" class="footer-link">关于</a>
+          <span class="footer-dot">·</span>
+          <span class="footer-link">帮助</span>
         </div>
-        <div class="nav-content">
-          <span class="nav-title">AI 就业助手</span>
-          <span class="nav-desc">求职问答专家</span>
+        <div class="footer-info">
+          <span class="location-indicator">
+            <span class="location-dot"></span>
+            服务运行中
+          </span>
         </div>
-      </router-link>
-    </nav>
-
-    <div class="sidebar-footer">
-      <div class="status-indicator">
-        <span class="status-dot"></span>
-        <span class="status-text">服务正常</span>
       </div>
-    </div>
-  </aside>
+    </aside>
+  </div>
 </template>
 
 <script setup>
+defineProps({
+  isOpen: { type: Boolean, default: true },
+  chats: { type: Array, default: () => [] },
+  activeId: { type: String, default: '' }
+})
+
+defineEmits(['close', 'new-chat', 'select-chat', 'delete-chat'])
 </script>
 
 <style scoped>
-.sidebar {
-  width: 280px;
-  height: 100vh;
-  background: rgba(20, 20, 35, 0.6);
-  backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  flex-direction: column;
+.sidebar-wrapper {
+  position: relative;
+}
+
+.sidebar-overlay {
+  display: none;
   position: fixed;
-  left: 0;
+  inset: 0;
+  background: var(--overlay-bg);
+  z-index: 90;
+}
+
+.sidebar {
+  position: fixed;
   top: 0;
-}
-
-.sidebar-header {
-  padding: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.logo-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.logo-icon svg {
-  width: 24px;
-  height: 24px;
-  color: white;
-}
-
-.logo-text {
-  font-size: 20px;
-  font-weight: 700;
-  color: white;
-}
-
-.sidebar-nav {
-  flex: 1;
-  padding: 16px 12px;
+  left: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border-primary);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  z-index: 100;
+  transition: transform var(--transition-slow), background var(--transition-normal), border-color var(--transition-normal);
+  transform: translateX(-100%);
 }
 
-.nav-item {
+.sidebar.open {
+  transform: translateX(0);
+}
+
+.sidebar-top {
+  padding: 12px;
+}
+
+.new-chat-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  text-decoration: none;
-  transition: all 0.3s;
-  color: rgba(255, 255, 255, 0.7);
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: white;
+.new-chat-btn:hover {
+  background: var(--sidebar-hover);
 }
 
-.nav-item.active {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%);
-  color: white;
-  border: 1px solid rgba(102, 126, 234, 0.3);
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px;
 }
 
-.nav-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.1);
+.history-label {
+  padding: 16px 12px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.history-empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  position: relative;
+  margin-bottom: 2px;
+}
+
+.history-item:hover {
+  background: var(--sidebar-hover);
+}
+
+.history-item.active {
+  background: var(--sidebar-active);
+}
+
+.history-item.active .history-item-title {
+  color: var(--accent-primary);
+}
+
+.history-item-icon {
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--text-tertiary);
   flex-shrink: 0;
 }
 
-.nav-icon svg {
-  width: 20px;
-  height: 20px;
+.history-item-title {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.nav-item.active .nav-icon {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.nav-content {
+.history-item-delete {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  opacity: 0;
+  transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+  flex-shrink: 0;
 }
 
-.nav-title {
-  font-size: 15px;
-  font-weight: 600;
+.history-item:hover .history-item-delete {
+  opacity: 1;
 }
 
-.nav-desc {
-  font-size: 12px;
-  opacity: 0.6;
+.history-item-delete:hover {
+  background: rgba(234, 67, 53, 0.12);
+  color: #ea4335;
 }
 
 .sidebar-footer {
-  padding: 20px 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-primary);
 }
 
-.status-indicator {
+.footer-links {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 8px;
 }
 
-.status-dot {
-  width: 8px;
-  height: 8px;
+.footer-link {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.footer-link:hover {
+  color: var(--text-secondary);
+}
+
+.footer-dot {
+  color: var(--text-disabled);
+  font-size: 12px;
+}
+
+.footer-info {
+  display: flex;
+  align-items: center;
+}
+
+.location-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.location-dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #4ade80;
-  box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+  background: #34a853;
+  box-shadow: 0 0 6px rgba(52, 168, 83, 0.5);
 }
 
-.status-text {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
+@media (max-width: 768px) {
+  .sidebar-overlay {
+    display: block;
+  }
+  .sidebar {
+    width: 280px;
+  }
+  .sidebar:not(.open) {
+    transform: translateX(-100%);
+  }
+}
+
+@media (min-width: 769px) {
+  .sidebar {
+    position: relative;
+    height: 100vh;
+    width: var(--sidebar-width);
+    transition: width var(--transition-slow), border-color var(--transition-normal);
+  }
+  .sidebar:not(.open) {
+    width: 0;
+    overflow: hidden;
+    border-right: none;
+  }
 }
 </style>

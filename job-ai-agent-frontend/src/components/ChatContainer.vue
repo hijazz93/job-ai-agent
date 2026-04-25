@@ -1,14 +1,26 @@
 <template>
   <div class="chat-container" ref="containerRef">
     <div class="messages-wrapper">
-      <div v-if="messages.length === 0" class="empty-state">
-        <div class="empty-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M21 10.12h-6.78l2.74-2.82c-2.73-2.7-7.15-2.8-9.88-.1-2.73 2.71-2.73 7.08 0 9.79s7.15 2.71 9.88 0C18.32 15.65 19 14.08 19 12.1h2c0 1.98-.88 4.55-2.64 6.29-3.51 3.48-9.21 3.48-12.72 0-3.5-3.47-3.53-9.11-.02-12.58s9.14-3.47 12.65 0L21 3v7.12z"/>
-          </svg>
+      <div v-if="messages.length === 0" class="welcome-screen">
+        <div class="welcome-greeting">
+          <h1 class="welcome-title">{{ welcomeTitle }}</h1>
         </div>
-        <h2>开始对话</h2>
-        <p>输入您的问题，AI 助手将为您解答</p>
+
+        <div class="suggestion-grid">
+          <div
+            v-for="(suggestion, index) in suggestions"
+            :key="index"
+            class="suggestion-card"
+            @click="$emit('send-message', suggestion.text)"
+          >
+            <div class="suggestion-text">{{ suggestion.text }}</div>
+            <div class="suggestion-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
       </div>
 
       <ChatMessage
@@ -17,43 +29,63 @@
         :message="message"
       />
 
-      <div v-if="isStreaming" class="typing-indicator">
+      <div v-if="isStreaming && hasAiMessage" class="typing-indicator">
         <span></span>
         <span></span>
         <span></span>
       </div>
     </div>
 
-    <ChatInput
-      @send="handleSend"
-      :disabled="isStreaming"
-    />
+    <div class="input-area">
+      <div class="input-disclaimer" v-if="messages.length > 0">
+        AI 生成的内容仅供参考，请验证重要信息
+      </div>
+      <ChatInput
+        @send="$emit('send-message', $event)"
+        :disabled="isStreaming"
+        :current-mode="currentMode"
+        :is-mode-dropdown-open="isModeDropdownOpen"
+        @toggle-mode-dropdown="$emit('toggle-mode-dropdown')"
+        @set-mode="$emit('set-mode', $event)"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import ChatMessage from './ChatMessage.vue'
 import ChatInput from './ChatInput.vue'
 
 const props = defineProps({
-  messages: {
-    type: Array,
-    default: () => []
-  },
-  isStreaming: {
-    type: Boolean,
-    default: false
-  }
+  messages: { type: Array, default: () => [] },
+  isStreaming: { type: Boolean, default: false },
+  currentMode: { type: String, default: 'fast' },
+  isModeDropdownOpen: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['send-message'])
+defineEmits(['send-message', 'toggle-mode-dropdown', 'set-mode'])
 
 const containerRef = ref(null)
 
-const handleSend = (message) => {
-  emit('send-message', message)
-}
+const hasAiMessage = computed(() => {
+  return props.messages.length > 0 && props.messages[props.messages.length - 1].role === 'assistant'
+})
+
+const welcomeTitle = computed(() => {
+  return '你好，我是 AI 就业助手'
+})
+
+const suggestions = [
+  { text: '软件工程应届生如何选择岗位方向？' },
+  { text: '校招面试中常见的技术问题有哪些？' },
+  { text: '如何准备一份合格的技术简历？' },
+  { text: '应届生第一份工作应该怎么选？' },
+  { text: '帮我规划软件工程校招求职时间线' },
+  { text: '分析2026年互联网行业就业趋势' },
+  { text: '帮我生成一份技术岗位简历模板' },
+  { text: '搜索最近的IT行业招聘会信息' },
+]
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -65,7 +97,14 @@ const scrollToBottom = () => {
 
 watch(() => props.messages.length, scrollToBottom)
 watch(() => props.isStreaming, (streaming) => {
-  if (!streaming) scrollToBottom()
+  if (streaming) {
+    const interval = setInterval(() => {
+      if (containerRef.value) {
+        containerRef.value.scrollTop = containerRef.value.scrollHeight
+      }
+    }, 100)
+    watch(() => props.isStreaming, () => clearInterval(interval), { once: true })
+  }
 })
 </script>
 
@@ -75,100 +114,140 @@ watch(() => props.isStreaming, (streaming) => {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  position: relative;
 }
 
 .messages-wrapper {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 0 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
+  scroll-behavior: smooth;
 }
 
-.messages-wrapper::-webkit-scrollbar {
-  width: 6px;
-}
-
-.messages-wrapper::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.messages-wrapper::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-}
-
-.empty-state {
+.welcome-screen {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.6);
-  gap: 16px;
+  padding: 40px 20px;
+  min-height: 100%;
 }
 
-.empty-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+.welcome-greeting {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.welcome-title {
+  font-size: 36px;
+  font-weight: 400;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.3;
+}
+
+.suggestion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  max-width: 740px;
+  width: 100%;
+}
+
+.suggestion-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.suggestion-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-secondary);
+  transform: translateY(-1px);
+}
+
+.suggestion-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  flex: 1;
+  margin-right: 12px;
+}
+
+.suggestion-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--bg-active);
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
 }
 
-.empty-icon svg {
-  width: 40px;
-  height: 40px;
-  color: rgba(102, 126, 234, 0.8);
+.input-area {
+  padding: 0 16px 16px;
+  flex-shrink: 0;
 }
 
-.empty-state h2 {
-  font-size: 24px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-  margin: 0;
+.input-disclaimer {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  padding: 8px 0;
 }
 
-.empty-state p {
-  font-size: 14px;
-  margin: 0;
+.input-extra {
+  display: flex;
+  justify-content: center;
+  padding: 0 0 8px;
 }
 
 .typing-indicator {
   display: flex;
-  gap: 6px;
-  padding: 16px;
   justify-content: center;
+  gap: 5px;
+  padding: 24px 0;
 }
 
 .typing-indicator span {
   width: 8px;
   height: 8px;
-  background: rgba(102, 126, 234, 0.8);
+  background: var(--text-tertiary);
   border-radius: 50%;
   animation: typing 1.4s infinite ease-in-out;
 }
 
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
-}
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes typing {
-  0%, 60%, 100% {
-    transform: translateY(0);
-    opacity: 0.4;
+  0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+  30% { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 768px) {
+  .welcome-title {
+    font-size: 28px;
   }
-  30% {
-    transform: translateY(-8px);
-    opacity: 1;
+  .suggestion-grid {
+    grid-template-columns: 1fr;
+  }
+  .suggestion-card {
+    padding: 12px 16px;
   }
 }
 </style>

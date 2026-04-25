@@ -1,26 +1,53 @@
 <template>
-  <div class="chat-input-container">
-    <div class="input-wrapper">
+  <div class="chat-input-wrapper">
+    <div class="input-container">
       <textarea
         ref="textareaRef"
         v-model="inputText"
-        @keydown.enter.exact="handleSend"
+        @keydown="handleKeydown"
         @input="autoResize"
-        placeholder="输入消息..."
+        :placeholder="placeholder"
         rows="1"
         :disabled="disabled"
       ></textarea>
-      <button
-        class="send-button"
-        @click="handleSend"
-        :disabled="disabled || !inputText.trim()"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-        </svg>
-      </button>
+      <div class="input-actions">
+        <div class="mode-selector" @click.stop="$emit('toggle-mode-dropdown')">
+          <div class="mode-dropdown" :class="{ 'open': isModeDropdownOpen }">
+            <span class="mode-label">{{ currentMode === 'fast' ? 'Fast' : 'Agent' }}</span>
+            <span class="mode-arrow">▼</span>
+            <div class="mode-options" v-if="isModeDropdownOpen">
+              <div 
+                class="mode-option" 
+                :class="{ 'active': currentMode === 'fast' }" 
+                @click="$emit('set-mode', 'fast')"
+              >
+                <span class="mode-title">Fast</span>
+                <span class="mode-desc">Answering quickly</span>
+              </div>
+              <div 
+                class="mode-option" 
+                :class="{ 'active': currentMode === 'agent' }" 
+                @click="$emit('set-mode', 'agent')"
+              >
+                <span class="mode-title">Agent</span>
+                <span class="mode-desc">Solving complex problems with tools</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button
+          class="send-btn"
+          @click="handleSend"
+          :disabled="disabled || !inputText.trim()"
+          :class="{ active: inputText.trim() }"
+          title="发送消息"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </div>
     </div>
-    <div class="input-hint">按 Enter 发送，Shift + Enter 换行</div>
   </div>
 </template>
 
@@ -28,18 +55,25 @@
 import { ref, nextTick } from 'vue'
 
 const props = defineProps({
-  disabled: {
-    type: Boolean,
-    default: false
-  }
+  disabled: { type: Boolean, default: false },
+  placeholder: { type: String, default: '输入消息...' },
+  currentMode: { type: String, default: 'fast' },
+  isModeDropdownOpen: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['send'])
+const emit = defineEmits(['send', 'toggle-mode-dropdown', 'set-mode'])
 
 const inputText = ref('')
 const textareaRef = ref(null)
 
-const handleSend = () => {
+function handleKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    handleSend()
+  }
+}
+
+function handleSend() {
   if (props.disabled || !inputText.value.trim()) return
   emit('send', inputText.value.trim())
   inputText.value = ''
@@ -50,37 +84,37 @@ const handleSend = () => {
   })
 }
 
-const autoResize = () => {
+function autoResize() {
   nextTick(() => {
     if (textareaRef.value) {
       textareaRef.value.style.height = 'auto'
-      textareaRef.value.style.height = Math.min(textareaRef.value.scrollHeight, 150) + 'px'
+      textareaRef.value.style.height = Math.min(textareaRef.value.scrollHeight, 160) + 'px'
     }
   })
 }
 </script>
 
 <style scoped>
-.chat-input-container {
-  padding: 16px;
-  background: rgba(30, 30, 50, 0.8);
-  backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+.chat-input-wrapper {
+  max-width: 780px;
+  margin: 0 auto;
+  width: 100%;
 }
 
-.input-wrapper {
+.input-container {
   display: flex;
   align-items: flex-end;
-  gap: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-xl);
   padding: 8px 8px 8px 20px;
-  transition: border-color 0.3s;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-normal);
+  box-shadow: var(--shadow-sm);
 }
 
-.input-wrapper:focus-within {
-  border-color: rgba(102, 126, 234, 0.5);
+.input-container:focus-within {
+  border-color: var(--border-input-focus);
+  box-shadow: 0 0 0 1px var(--border-input-focus);
 }
 
 textarea {
@@ -88,52 +122,161 @@ textarea {
   background: transparent;
   border: none;
   outline: none;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-size: 15px;
   line-height: 1.5;
   resize: none;
-  max-height: 150px;
+  max-height: 160px;
   padding: 8px 0;
+  font-family: inherit;
 }
 
 textarea::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-disabled);
 }
 
-.send-button {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+textarea:disabled {
+  opacity: 0.6;
+}
+
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-left: 4px;
+}
+
+.mode-selector {
+  position: relative;
+  z-index: 100;
+}
+
+.mode-dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
   cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  user-select: none;
+  font-size: 13px;
+}
+
+.mode-dropdown:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-secondary);
+}
+
+.mode-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.mode-arrow {
+  font-size: 8px;
+  color: var(--text-tertiary);
+  transition: transform var(--transition-fast);
+}
+
+.mode-dropdown.open .mode-arrow {
+  transform: rotate(180deg);
+}
+
+.mode-options {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 4px;
+  min-width: 200px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  z-index: 101;
+}
+
+.mode-option {
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mode-option:hover {
+  background: var(--bg-card-hover);
+}
+
+.mode-option.active {
+  background: var(--bg-active);
+  border-left: 3px solid var(--accent-primary);
+}
+
+.mode-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.mode-desc {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.3;
+}
+
+.send-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s;
-  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
-.send-button:hover:not(:disabled) {
-  transform: scale(1.05);
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+.send-btn.active {
+  color: var(--accent-primary);
 }
 
-.send-button:disabled {
-  opacity: 0.5;
+.send-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.send-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.send-btn:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-.send-button svg {
-  width: 20px;
-  height: 20px;
-}
-
-.input-hint {
-  text-align: center;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.3);
-  margin-top: 8px;
+@media (max-width: 768px) {
+  .input-container {
+    border-radius: var(--radius-lg);
+    padding: 6px 6px 6px 14px;
+  }
+  textarea {
+    font-size: 14px;
+  }
+  .mode-dropdown {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  .send-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .input-actions {
+    gap: 4px;
+  }
 }
 </style>
