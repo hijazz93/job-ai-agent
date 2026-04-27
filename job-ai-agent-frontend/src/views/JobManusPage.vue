@@ -9,42 +9,45 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import ChatContainer from '../components/ChatContainer.vue'
 import { chatWithJobManus } from '../api/chat'
 
 const messages = ref([])
 const isStreaming = ref(false)
-let currentEventSource = null
+let currentStream = null
 
 function handleSend(text) {
   if (isStreaming.value) return
 
   messages.value.push({ role: 'user', content: text })
   isStreaming.value = true
-  let stepCount = 0
+  const processSteps = []
 
-  currentEventSource = chatWithJobManus(text, {
-    onMessage: (chunk) => {
-      stepCount++
-      messages.value.push({
-        role: 'assistant',
-        content: chunk,
-        step: stepCount,
-        isStep: true
-      })
+  const aiMessage = reactive({ role: 'assistant', content: '', processSteps: [] })
+  messages.value.push(aiMessage)
+
+  currentStream = chatWithJobManus(text, {
+    onStep: (stepData) => {
+      processSteps.push(stepData)
+    },
+    onAnswer: (answerText) => {
+      aiMessage.content = answerText
+      aiMessage.processSteps = [...processSteps]
     },
     onError: (error) => {
       console.error('SSE Error:', error)
-      messages.value.push({
-        role: 'assistant',
-        content: '抱歉，发生了错误，请稍后重试。'
-      })
+      aiMessage.content = '抱歉，发生了错误，请稍后重试。'
+      aiMessage.processSteps = processSteps
       isStreaming.value = false
     },
     onComplete: () => {
+      if (!aiMessage.content) {
+        aiMessage.content = '任务执行完成。'
+      }
+      aiMessage.processSteps = processSteps
       isStreaming.value = false
-      currentEventSource = null
+      currentStream = null
     }
   })
 }
@@ -64,8 +67,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('chat-selected', handleChatSelected)
-  if (currentEventSource) {
-    currentEventSource.close()
+  if (currentStream) {
+    if (currentStream.abort) currentStream.abort()
+    else if (currentStream.close) currentStream.close()
   }
 })
 </script>

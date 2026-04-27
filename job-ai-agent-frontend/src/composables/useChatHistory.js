@@ -2,8 +2,12 @@ import { ref } from 'vue'
 
 const HISTORY_KEY = 'job-ai-chat-history'
 const MAX_HISTORY = 50
+const DEBOUNCE_MS = 500
 
 const chats = ref(loadHistory())
+
+let saveTimer = null
+let pendingSave = false
 
 function loadHistory() {
   try {
@@ -15,7 +19,31 @@ function loadHistory() {
 }
 
 function saveHistory() {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(chats.value))
+  if (saveTimer) return
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(chats.value))
+    } catch (e) {
+      console.error('Failed to save chat history:', e)
+    }
+    saveTimer = null
+    if (pendingSave) {
+      pendingSave = false
+      saveHistory()
+    }
+  }, DEBOUNCE_MS)
+}
+
+function saveHistoryImmediate() {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+  }
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(chats.value))
+  } catch (e) {
+    console.error('Failed to save chat history immediately:', e)
+  }
 }
 
 function createChat(title = '新对话') {
@@ -30,7 +58,7 @@ function createChat(title = '新对话') {
   if (chats.value.length > MAX_HISTORY) {
     chats.value = chats.value.slice(0, MAX_HISTORY)
   }
-  saveHistory()
+  saveHistoryImmediate()
   return chat
 }
 
@@ -45,13 +73,13 @@ function updateChatTitle(id, title) {
 
 function addMessage(id, message) {
   const chat = chats.value.find(c => c.id === id)
-  if (chat) {
+  if (chat && message) {
     chat.messages.push(message)
     chat.updatedAt = Date.now()
     if (!chat.title || chat.title === '新对话') {
-      const firstUser = chat.messages.find(m => m.role === 'user')
+      const firstUser = chat.messages.find(m => m && m.role === 'user')
       if (firstUser) {
-        chat.title = firstUser.content.slice(0, 30)
+        chat.title = firstUser.content ? firstUser.content.slice(0, 30) : '新对话'
       }
     }
     saveHistory()
@@ -60,7 +88,7 @@ function addMessage(id, message) {
 
 function deleteChat(id) {
   chats.value = chats.value.filter(c => c.id !== id)
-  saveHistory()
+  saveHistoryImmediate()
 }
 
 function getChat(id) {
@@ -72,6 +100,15 @@ function getChatMessages(id) {
   return chat ? chat.messages : []
 }
 
+function clearAllChats() {
+  chats.value = []
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+  }
+  localStorage.removeItem(HISTORY_KEY)
+}
+
 export function useChatHistory() {
   return {
     chats,
@@ -81,6 +118,7 @@ export function useChatHistory() {
     addMessage,
     deleteChat,
     getChat,
-    getChatMessages
+    getChatMessages,
+    clearAllChats
   }
 }

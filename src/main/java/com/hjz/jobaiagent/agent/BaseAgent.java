@@ -99,6 +99,26 @@ public abstract class BaseAgent {
     public abstract String step();
 
     /**
+     * 将文本中的换行符替换为 SSE 安全占位符，避免多行内容破坏 SSE 协议格式。
+     * 前端在解析 data: 行时会还原。
+     */
+    private static String ssesafe(String text) {
+        if (text == null) return "";
+        return text.replace("\n", "__NL__").replace("\r", "__CR__");
+    }
+
+    /**
+     * 提取 Agent 执行完成后的最终回复文本
+     * ToolCallAgent 会重写此方法返回 LLM 的最终文本
+     */
+    protected String extractFinalAnswer() {
+        if (this instanceof ToolCallAgent tca) {
+            return tca.getLastAssistantText();
+        }
+        return "";
+    }
+
+    /**
      * 清理资源
      */
     protected void cleanup() {
@@ -156,22 +176,31 @@ public abstract class BaseAgent {
                     String stepResult = step();
                     String result = "Step " + stepNumber + ": " + stepResult;
                     results.add(result);
-                    // 输出当前每一步的结果到 SSE
-                    sseEmitter.send(result);
+                    // 中间步骤以 [STEP] 前缀发送，前端仅收集为过程日志
+                    sseEmitter.send("[STEP]" + ssesafe(result));
                 }
                 // 检查是否超出步骤限制
                 if (currentStep >= maxSteps) {
                     state = AgentState.FINISHED;
                     results.add("Terminated: Reached max steps (" + maxSteps + ")");
-                    sseEmitter.send("执行结束：达到最大步骤（" + maxSteps + "）");
+                    sseEmitter.send("[STEP]执行结束：达到最大步骤（" + maxSteps + "）");
                 }
+                // 提取最终回复文本并发送（仅在自然结束时，非超步数）
+                if (state == AgentState.FINISHED && currentStep < maxSteps) {
+                    String finalAnswer = extractFinalAnswer();
+                    if (StrUtil.isNotBlank(finalAnswer)) {
+                        sseEmitter.send("[ANSWER]" + ssesafe(finalAnswer));
+                    }
+                }
+                // 发送完成标记
+                sseEmitter.send("[DONE]");
                 // 正常完成
                 sseEmitter.complete();
             } catch (Exception e) {
                 state = AgentState.ERROR;
                 log.error("error executing agent", e);
                 try {
-                    sseEmitter.send("执行错误：" + e.getMessage());
+                    sseEmitter.send("执行错误：" + ssesafe(e.getMessage()));
                     sseEmitter.complete();
                 } catch (IOException ex) {
                     sseEmitter.completeWithError(ex);

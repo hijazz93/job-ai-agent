@@ -29,13 +29,38 @@
             </svg>
           </div>
           <span class="history-item-title">{{ chat.title }}</span>
-          <button class="history-item-delete" @click.stop="$emit('delete-chat', chat.id)" title="删除对话">
+          <button class="history-item-delete" @click.stop="confirmDelete(chat.id, chat.title)" title="删除对话">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
               <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
             </svg>
           </button>
         </div>
       </nav>
+
+      <div class="knowledge-base-section">
+        <button 
+          class="knowledge-toggle-btn" 
+          :class="{ active: showKnowledgeBase }"
+          @click="showKnowledgeBase = !showKnowledgeBase"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM8 15.01l1.41 1.41L11 14.84V19h2v-4.16l1.59 1.59L16 15.01 12.01 12z"/>
+          </svg>
+          <span>知识库管理</span>
+          <svg class="toggle-arrow" :class="{ rotated: showKnowledgeBase }" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <path d="M7 10l5 5 5-5z"/>
+          </svg>
+        </button>
+        
+        <transition name="slide">
+          <div v-if="showKnowledgeBase" class="knowledge-content">
+            <DocumentUpload 
+              @upload-success="handleUploadSuccess"
+              @upload-error="handleUploadError"
+            />
+          </div>
+        </transition>
+      </div>
 
       <div class="sidebar-footer">
         <div class="footer-links">
@@ -55,13 +80,45 @@
 </template>
 
 <script setup>
-defineProps({
+import { ref, computed } from 'vue'
+import DocumentUpload from './DocumentUpload.vue'
+
+const props = defineProps({
   isOpen: { type: Boolean, default: true },
   chats: { type: Array, default: () => [] },
-  activeId: { type: String, default: '' }
+  activeId: { type: String, default: '' },
+  isAuthenticated: { type: Boolean, default: false },
+  username: { type: String, default: '' },
+  userRole: { type: String, default: '' }
 })
 
-defineEmits(['close', 'new-chat', 'select-chat', 'delete-chat'])
+const emit = defineEmits(['close', 'new-chat', 'select-chat', 'delete-chat'])
+
+const displayName = computed(() => props.username || '用户')
+const roleLabel = computed(() => {
+  switch (props.userRole) {
+    case 'ADMIN': return '管理员'
+    case 'PREMIUM_USER': return '高级用户'
+    default: return '普通用户'
+  }
+})
+
+const showKnowledgeBase = ref(false)
+
+function confirmDelete(chatId, chatTitle) {
+  const title = chatTitle || '该对话'
+  if (window.confirm(`确定要删除对话「${title}」吗？此操作不可恢复。`)) {
+    emit('delete-chat', chatId)
+  }
+}
+
+function handleUploadSuccess(data) {
+  console.log('文档上传成功:', data)
+}
+
+function handleUploadError(error) {
+  console.error('文档上传失败:', error)
+}
 </script>
 
 <style scoped>
@@ -208,6 +265,76 @@ defineEmits(['close', 'new-chat', 'select-chat', 'delete-chat'])
 .sidebar-footer {
   padding: 12px 16px;
   border-top: 1px solid var(--border-primary);
+}
+
+.knowledge-base-section {
+  border-top: 1px solid var(--border-primary);
+  padding: 8px;
+}
+
+.knowledge-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.knowledge-toggle-btn:hover {
+  background: var(--sidebar-hover);
+  color: var(--text-primary);
+}
+
+.knowledge-toggle-btn.active {
+  background: rgba(26, 115, 232, 0.08);
+  color: var(--accent-primary);
+}
+
+.knowledge-toggle-btn svg:first-child {
+  color: inherit;
+}
+
+.toggle-arrow {
+  margin-left: auto;
+  transition: transform var(--transition-fast);
+  color: var(--text-tertiary);
+}
+
+.toggle-arrow.rotated {
+  transform: rotate(180deg);
+}
+
+.knowledge-content {
+  padding: 8px 4px 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 400px);
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+}
+
+.slide-enter-to,
+.slide-leave-from {
+  opacity: 1;
+  max-height: 600px;
 }
 
 .footer-links {

@@ -3,7 +3,8 @@ package com.hjz.jobaiagent.app;
 
 import com.hjz.jobaiagent.advisor.MyLoggerAdvisor;
 import com.hjz.jobaiagent.advisor.ReReadingAdvisor;
-import com.hjz.jobaiagent.chatmemory.FileBasedChatMemory;
+import com.hjz.jobaiagent.advisor.MyLoggerAdvisor;
+import com.hjz.jobaiagent.advisor.ReReadingAdvisor;
 import com.hjz.jobaiagent.rag.JobAppRagCustomAdvisorFactory;
 import com.hjz.jobaiagent.rag.QueryRewriter;
 import jakarta.annotation.Resource;
@@ -13,7 +14,6 @@ import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.tool.ToolCallback;
@@ -29,32 +29,18 @@ import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvis
 
 @Component
 @Slf4j
-
 public class JobApp {
 
     private final ChatClient chatClient;
 
     private static final String SYSTEM_PROMPT = "你是专业、严谨、共情的就业咨询专家，专注为用户解决全流程就业问题，涵盖职业规划、简历优化、面试辅导、行业选择、职场适应、升学就业权衡等全维度就业相关咨询，始终以用户需求为核心，提供落地、可执行的专业建议。";
 
-    /**
-     * 构造函数，初始化大模型客户端
-     * @param dashscopeChatModel 大模型
-     */
-    public JobApp(ChatModel dashscopeChatModel) {
-        // 基于文件的对话记忆
-        String fileDir = System.getProperty("user.dir") + "/tmp/chat-memory";
-        ChatMemory chatMemory = new FileBasedChatMemory(fileDir);
-
-        // 基于内存的对话记忆
-//        ChatMemory chatMemory = new InMemoryChatMemory();
+    public JobApp(ChatModel dashscopeChatModel, ChatMemory chatMemory) {
         chatClient = ChatClient.builder(dashscopeChatModel)
-                .defaultSystem(SYSTEM_PROMPT)   // 系统预设
+                .defaultSystem(SYSTEM_PROMPT)
                 .defaultAdvisors(
-                        new MessageChatMemoryAdvisor(chatMemory)    // 默认拦截器
-                        // 自定义拦截器
+                        new MessageChatMemoryAdvisor(chatMemory)
                         , new MyLoggerAdvisor()
-                        // 自定义 Re2 Advisor （重读），按需开启
-//                        , new ReReadingAdvisor()
                 )
                 .build();
     }
@@ -91,6 +77,28 @@ public class JobApp {
                 .user(message)
                 .advisors(spec -> spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, chatId)
                         .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
+                .stream()
+                .content();
+    }
+
+    /**
+     * AI 基础对话 + RAG 知识库检索（SSE 流式传输）
+     *
+     * @param message 用户消息
+     * @param chatId 对话ID
+     * @return
+     */
+    public Flux<String> doChatByStreamWithRag(String message, String chatId) {
+        // 执行查询重写
+        String rewrittenMessage = queryRewriter.doQueryRewrite(message);
+
+        return chatClient
+                .prompt()
+                .user(rewrittenMessage)
+                .advisors(spec -> spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, chatId)
+                        .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
+                .advisors(new MyLoggerAdvisor())
+                .advisors(new QuestionAnswerAdvisor(jobAppVectorStore))
                 .stream()
                 .content();
     }

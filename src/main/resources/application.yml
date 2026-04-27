@@ -3,6 +3,12 @@ spring:
     name: job-ai-agent
   profiles:
     active: local
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+      enabled: true
+
 
 #  ai:
 #    ollama:
@@ -32,6 +38,9 @@ server:
   port: 8123
   servlet:
     context-path: /api
+  tomcat:
+    max-http-header-size: 10MB
+
 # springdoc-openapi
 springdoc:
   swagger-ui:
@@ -54,3 +63,5 @@ knife4j:
 logging:
   level:
     org.springframework.ai: DEBUG
+
+

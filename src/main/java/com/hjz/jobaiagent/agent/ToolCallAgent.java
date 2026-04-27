@@ -35,6 +35,9 @@ public class ToolCallAgent extends ReActAgent {
     // 保存工具调用信息的响应结果（要调用那些工具）
     private ChatResponse toolCallChatResponse;
 
+    // 上一次 LLM 响应的文本内容（用于最终回复传递）
+    private String lastAssistantText = "";
+
     // 工具调用管理者
     private final ToolCallingManager toolCallingManager;
 
@@ -53,16 +56,41 @@ public class ToolCallAgent extends ReActAgent {
     }
 
     /**
+     * 执行单个步骤，当 think() 返回 false（无工具调用）时，将 LLM 的文本回复作为最终结果
+     */
+    @Override
+    public String step() {
+        try {
+            boolean shouldAct = think();
+            if (!shouldAct) {
+                if (StrUtil.isNotBlank(lastAssistantText)) {
+                    return "AI 回复：" + lastAssistantText;
+                }
+                return "思考完成，无需行动";
+            }
+            return act();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "步骤执行失败：" + e.getMessage();
+        }
+    }
+
+    /**
      * 处理当前状态并决定下一步行动
      *
      * @return 是否需要执行行动
      */
     @Override
     public boolean think() {
-        // 1、校验提示词，拼接用户提示词
-        if (StrUtil.isNotBlank(getNextStepPrompt())) {  // 下一步提示词不能为空
-            UserMessage userMessage = new UserMessage(getNextStepPrompt());
-            getMessageList().add(userMessage);
+        // 1、仅在首步或上一步执行了工具后，注入下一步提示词
+        if (StrUtil.isNotBlank(getNextStepPrompt())) {
+            boolean isFirstStep = getMessageList().stream()
+                    .noneMatch(m -> m instanceof AssistantMessage || m instanceof ToolResponseMessage);
+            boolean lastMessageIsToolResponse = !getMessageList().isEmpty()
+                    && CollUtil.getLast(getMessageList()) instanceof ToolResponseMessage;
+            if (isFirstStep || lastMessageIsToolResponse) {
+                getMessageList().add(new UserMessage(getNextStepPrompt()));
+            }
         }
         // 2、调用 AI 大模型，获取工具调用结果
         List<Message> messageList = getMessageList();
@@ -82,16 +110,18 @@ public class ToolCallAgent extends ReActAgent {
             List<AssistantMessage.ToolCall> toolCallList = assistantMessage.getToolCalls();
             // 输出提示信息
             String result = assistantMessage.getText();
+            this.lastAssistantText = result;
             log.info(getName() + "的思考：" + result);
             log.info(getName() + "选择了 " + toolCallList.size() + " 个工具来使用");
             String toolCallInfo = toolCallList.stream()
                     .map(toolCall -> String.format("工具名称：%s，参数：%s", toolCall.name(), toolCall.arguments()))
                     .collect(Collectors.joining("\n"));
             log.info(toolCallInfo);
-            // 如果不需要调用工具，返回 false
+            // 如果不需要调用工具，说明任务已完成，直接结束
             if (toolCallList.isEmpty()) {
-                // 只有不调用工具时，才需要手动记录助手消息
                 getMessageList().add(assistantMessage);
+                log.info("{} 选择了 0 个工具，任务自然结束", getName());
+                setState(AgentState.FINISHED);
                 return false;
             } else {
                 // 需要调用工具时，无需记录助手消息，因为调用工具时会自动记录
@@ -122,7 +152,7 @@ public class ToolCallAgent extends ReActAgent {
         ToolResponseMessage toolResponseMessage = (ToolResponseMessage) CollUtil.getLast(toolExecutionResult.conversationHistory());
         // 判断是否调用了终止工具
         boolean terminateToolCalled = toolResponseMessage.getResponses().stream()
-                .anyMatch(response -> response.name().equals("doTerminate"));
+                .anyMatch(response -> response.name().equals("terminate"));
         if (terminateToolCalled) {
             // 任务结束，更改状态
             setState(AgentState.FINISHED);
@@ -130,7 +160,12 @@ public class ToolCallAgent extends ReActAgent {
         String results = toolResponseMessage.getResponses().stream()
                 .map(response -> "工具 " + response.name() + " 返回的结果：" + response.responseData())
                 .collect(Collectors.joining("\n"));
+        // 当 LLM 同时返回了文本内容和终止工具调用时，将文本内容前置作为最终回复
+        if (terminateToolCalled && StrUtil.isNotBlank(lastAssistantText)) {
+            results = "AI 最终回复：\n" + lastAssistantText + "\n\n" + results;
+        }
         log.info(results);
         return results;
     }
+
 }

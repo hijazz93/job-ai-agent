@@ -1,6 +1,18 @@
 <template>
   <div class="chat-input-wrapper">
     <div class="input-container">
+      <ToolSelector
+        v-if="currentMode === 'agent' && allowedModes.includes('agent')"
+        :selected-tools="selectedTools"
+        @change="$emit('tools-change', $event)"
+        @file-parsed="$emit('file-parsed', $event)"
+      />
+      <div v-if="currentMode === 'fast'" class="rag-toggle-btn" :class="{ active: ragEnabled }" @click.stop="$emit('toggle-rag')" title="知识库检索">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+          <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zM10 9h8v2h-8V9zm0 3h4v2h-4v-2zm0-6h8v2h-8V6z"/>
+        </svg>
+        <span>知识库</span>
+      </div>
       <textarea
         ref="textareaRef"
         v-model="inputText"
@@ -11,29 +23,26 @@
         :disabled="disabled"
       ></textarea>
       <div class="input-actions">
-        <div class="mode-selector" @click.stop="$emit('toggle-mode-dropdown')">
+        <div v-if="visibleOptions.length > 1" class="mode-selector" @click.stop="$emit('toggle-mode-dropdown')">
           <div class="mode-dropdown" :class="{ 'open': isModeDropdownOpen }">
-            <span class="mode-label">{{ currentMode === 'fast' ? 'Fast' : 'Agent' }}</span>
+            <span class="mode-label">{{ currentModeLabel }}</span>
             <span class="mode-arrow">▼</span>
             <div class="mode-options" v-if="isModeDropdownOpen">
-              <div 
-                class="mode-option" 
-                :class="{ 'active': currentMode === 'fast' }" 
-                @click="$emit('set-mode', 'fast')"
+              <div
+                v-for="opt in visibleOptions"
+                :key="opt.value"
+                class="mode-option"
+                :class="{ 'active': currentMode === opt.value }"
+                @click="$emit('set-mode', opt.value)"
               >
-                <span class="mode-title">Fast</span>
-                <span class="mode-desc">Answering quickly</span>
-              </div>
-              <div 
-                class="mode-option" 
-                :class="{ 'active': currentMode === 'agent' }" 
-                @click="$emit('set-mode', 'agent')"
-              >
-                <span class="mode-title">Agent</span>
-                <span class="mode-desc">Solving complex problems with tools</span>
+                <span class="mode-title">{{ opt.title }}</span>
+                <span class="mode-desc">{{ opt.desc }}</span>
               </div>
             </div>
           </div>
+        </div>
+        <div v-else class="mode-label-static">
+          <span class="mode-label">{{ currentModeLabel }}</span>
         </div>
         <button
           class="send-btn"
@@ -52,16 +61,34 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
+import ToolSelector from './ToolSelector.vue'
+
+const modeOptions = [
+  { value: 'fast', title: 'Fast', desc: 'Answering quickly' },
+  { value: 'agent', title: 'Agent', desc: 'Solving complex problems with tools' }
+]
 
 const props = defineProps({
   disabled: { type: Boolean, default: false },
   placeholder: { type: String, default: '输入消息...' },
   currentMode: { type: String, default: 'fast' },
-  isModeDropdownOpen: { type: Boolean, default: false }
+  isModeDropdownOpen: { type: Boolean, default: false },
+  selectedTools: { type: Array, default: () => [] },
+  allowedModes: { type: Array, default: () => ['fast', 'agent'] },
+  ragEnabled: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['send', 'toggle-mode-dropdown', 'set-mode'])
+const visibleOptions = computed(() => {
+  return modeOptions.filter(m => props.allowedModes.includes(m.value))
+})
+
+const currentModeLabel = computed(() => {
+  const opt = modeOptions.find(m => m.value === props.currentMode)
+  return opt ? opt.title : props.currentMode
+})
+
+const emit = defineEmits(['send', 'toggle-mode-dropdown', 'set-mode', 'tools-change', 'toggle-rag', 'file-parsed'])
 
 const inputText = ref('')
 const textareaRef = ref(null)
@@ -103,7 +130,7 @@ function autoResize() {
 
 .input-container {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   background: var(--bg-input);
   border: 1px solid var(--border-input);
   border-radius: var(--radius-xl);
@@ -229,6 +256,44 @@ textarea:disabled {
   font-size: 11px;
   color: var(--text-tertiary);
   line-height: 1.3;
+}
+
+.rag-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-card);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.rag-toggle-btn:hover {
+  border-color: var(--border-secondary);
+  color: var(--text-secondary);
+}
+
+.rag-toggle-btn.active {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--bg-active);
+}
+
+.rag-toggle-btn svg {
+  flex-shrink: 0;
+}
+
+.mode-label-static {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 13px;
 }
 
 .send-btn {

@@ -4,22 +4,24 @@ import com.hjz.jobaiagent.advisor.MyLoggerAdvisor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.tool.ToolCallback;
-import org.springframework.stereotype.Component;
-
 /**
  * 就业 AI 超级智能体（拥有自主规划能力，可以直接使用）
+ * 注意：此类由 AiController 手动实例化，不作为 Spring Bean 管理
  */
-@Component
 public class JobManus extends ToolCallAgent {
 
-    public JobManus(ToolCallback[] allTools, ChatModel dashscopeChatModel) {
+    public JobManus(ToolCallback[] allTools, ChatModel dashscopeChatModel, String fileContext) {
         super(allTools);
         this.setName("jobManus");
         String SYSTEM_PROMPT = """
                 You are JobManus, an all-capable AI assistant, aimed at solving any task presented by the user.
                 You have various tools at your disposal that you can call upon to efficiently complete complex requests.
                 """;
-        this.setSystemPrompt(SYSTEM_PROMPT);
+        if (fileContext != null && !fileContext.isBlank()) {
+            this.setSystemPrompt(SYSTEM_PROMPT + fileContext);
+        } else {
+            this.setSystemPrompt(SYSTEM_PROMPT);
+        }
         String NEXT_STEP_PROMPT = """
                 Based on user needs, proactively select the most appropriate tool or combination of tools.
                 For complex tasks, you can break down the problem and use different tools step by step to solve it.

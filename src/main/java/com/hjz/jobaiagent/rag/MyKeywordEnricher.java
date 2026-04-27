@@ -12,11 +12,11 @@ import java.util.List;
  * 基于 AI 的文档元信息增强器（为文档补充元信息）
  */
 @Component
-class MyKeywordEnricher {
+public class MyKeywordEnricher {
     @Resource
     private ChatModel dashscopeChatModel;
 
-    List<Document> enrichDocuments(List<Document> documents) {
+    public List<Document> enrichDocuments(List<Document> documents) {
         KeywordMetadataEnricher enricher = new KeywordMetadataEnricher(this.dashscopeChatModel, 5); // 最多补充5个关键词
         return enricher.apply(documents);
     }

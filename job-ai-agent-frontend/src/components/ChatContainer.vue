@@ -37,6 +37,10 @@
     </div>
 
     <div class="input-area">
+      <FileAttachmentList
+        :files="sessionFiles"
+        @remove="$emit('remove-file', $event)"
+      />
       <div class="input-disclaimer" v-if="messages.length > 0">
         AI 生成的内容仅供参考，请验证重要信息
       </div>
@@ -45,28 +49,40 @@
         :disabled="isStreaming"
         :current-mode="currentMode"
         :is-mode-dropdown-open="isModeDropdownOpen"
+        :selected-tools="selectedTools"
+        :allowed-modes="allowedModes"
+        :rag-enabled="ragEnabled"
         @toggle-mode-dropdown="$emit('toggle-mode-dropdown')"
         @set-mode="$emit('set-mode', $event)"
+        @tools-change="$emit('tools-change', $event)"
+        @toggle-rag="$emit('toggle-rag')"
+        @file-parsed="$emit('file-parsed', $event)"
       />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import ChatMessage from './ChatMessage.vue'
 import ChatInput from './ChatInput.vue'
+import FileAttachmentList from './FileAttachmentList.vue'
 
 const props = defineProps({
   messages: { type: Array, default: () => [] },
   isStreaming: { type: Boolean, default: false },
   currentMode: { type: String, default: 'fast' },
-  isModeDropdownOpen: { type: Boolean, default: false }
+  isModeDropdownOpen: { type: Boolean, default: false },
+  selectedTools: { type: Array, default: () => [] },
+  allowedModes: { type: Array, default: () => ['fast', 'agent'] },
+  ragEnabled: { type: Boolean, default: false },
+  sessionFiles: { type: Array, default: () => [] }
 })
 
-defineEmits(['send-message', 'toggle-mode-dropdown', 'set-mode'])
+defineEmits(['send-message', 'toggle-mode-dropdown', 'set-mode', 'tools-change', 'toggle-rag', 'file-parsed', 'remove-file'])
 
 const containerRef = ref(null)
+const scrollIntervalRef = ref(null)
 
 const hasAiMessage = computed(() => {
   return props.messages.length > 0 && props.messages[props.messages.length - 1].role === 'assistant'
@@ -98,12 +114,23 @@ const scrollToBottom = () => {
 watch(() => props.messages.length, scrollToBottom)
 watch(() => props.isStreaming, (streaming) => {
   if (streaming) {
-    const interval = setInterval(() => {
+    scrollIntervalRef.value = setInterval(() => {
       if (containerRef.value) {
         containerRef.value.scrollTop = containerRef.value.scrollHeight
       }
     }, 100)
-    watch(() => props.isStreaming, () => clearInterval(interval), { once: true })
+  } else {
+    if (scrollIntervalRef.value) {
+      clearInterval(scrollIntervalRef.value)
+      scrollIntervalRef.value = null
+    }
+  }
+})
+
+onUnmounted(() => {
+  if (scrollIntervalRef.value) {
+    clearInterval(scrollIntervalRef.value)
+    scrollIntervalRef.value = null
   }
 })
 </script>

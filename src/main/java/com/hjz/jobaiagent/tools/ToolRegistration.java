@@ -15,6 +15,9 @@ public class ToolRegistration {
     @Value("${search-api.api-key}")
     private String searchApiKey;
 
+    @Value("${document.upload.path:tmp}")
+    private String documentUploadPath;
+
     // 创建allTools的Bean，把工具集中创建
     @Bean
     public ToolCallback[] allTools() {
@@ -25,6 +28,7 @@ public class ToolRegistration {
         TerminalOperationTool terminalOperationTool = new TerminalOperationTool();
         PDFGenerationTool pdfGenerationTool = new PDFGenerationTool();
         TerminateTool terminateTool = new TerminateTool();
+        FileParseTool fileParseTool = new FileParseTool(documentUploadPath);
         return ToolCallbacks.from(
                 fileOperationTool,
                 webSearchTool,
@@ -32,7 +36,8 @@ public class ToolRegistration {
                 resourceDownloadTool,
                 terminalOperationTool,
                 pdfGenerationTool,
-                terminateTool
+                terminateTool,
+                fileParseTool
         );
     }
 }
