@@ -33,7 +33,7 @@ public class JobApp {
 
     private final ChatClient chatClient;
 
-    private static final String SYSTEM_PROMPT = "你是专业、严谨、共情的就业咨询专家，专注为用户解决全流程就业问题，涵盖职业规划、简历优化、面试辅导、行业选择、职场适应、升学就业权衡等全维度就业相关咨询，始终以用户需求为核心，提供落地、可执行的专业建议。";
+    private static final String SYSTEM_PROMPT = "你是专业、严谨、共情的就业咨询专家，专注为用户解决全流程就业问题，涵盖职业规划、简历优化、面试辅导、行业选择、职场适应、升学就业权衡等全维度就业相关咨询，始终以用户需求为核心，提供落地、可执行的专业建议。且默认用中文回答。";
 
     public JobApp(ChatModel dashscopeChatModel, ChatMemory chatMemory) {
         chatClient = ChatClient.builder(dashscopeChatModel)

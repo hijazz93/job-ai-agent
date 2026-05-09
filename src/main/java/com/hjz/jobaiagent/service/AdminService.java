@@ -1,9 +1,13 @@
 package com.hjz.jobaiagent.service;
 
 import com.hjz.jobaiagent.dto.UpgradeRequestDto;
+import com.hjz.jobaiagent.entity.ChatSession;
 import com.hjz.jobaiagent.entity.Role;
 import com.hjz.jobaiagent.entity.UpgradeRequest;
 import com.hjz.jobaiagent.entity.User;
+import com.hjz.jobaiagent.repository.ChatMessageRepository;
+import com.hjz.jobaiagent.repository.ChatSessionRepository;
+import com.hjz.jobaiagent.repository.SessionFileContextRepository;
 import com.hjz.jobaiagent.repository.UpgradeRequestRepository;
 import com.hjz.jobaiagent.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +27,9 @@ public class AdminService {
 
     private final UpgradeRequestRepository upgradeRequestRepository;
     private final UserRepository userRepository;
+    private final ChatSessionRepository chatSessionRepository;
+    private final ChatMessageRepository chatMessageRepository;
+    private final SessionFileContextRepository sessionFileContextRepository;
     private final PasswordEncoder passwordEncoder;
 
     public List<UpgradeRequestDto> getUpgradeRequests(String status) {
@@ -131,6 +138,26 @@ public class AdminService {
         if (user.getRole() == Role.ADMIN) {
             throw new RuntimeException("不能删除管理员账号");
         }
+
+        // 清理该用户被设为审批人的升级请求（设为 null）
+        List<UpgradeRequest> reviewedRequests = upgradeRequestRepository.findByReviewedByOrderByCreatedAtDesc(user);
+        for (UpgradeRequest req : reviewedRequests) {
+            req.setReviewedBy(null);
+            upgradeRequestRepository.save(req);
+        }
+
+        // 清理该用户创建的升级请求
+        List<UpgradeRequest> userRequests = upgradeRequestRepository.findByUserIdOrderByCreatedAtDesc(id);
+        upgradeRequestRepository.deleteAll(userRequests);
+
+        // 清理该用户的所有会话（先删消息和文件上下文，再删会话）
+        List<ChatSession> sessions = chatSessionRepository.findByUserIdOrderByUpdatedAtDesc(id);
+        for (ChatSession session : sessions) {
+            chatMessageRepository.deleteBySessionId(session.getId());
+            sessionFileContextRepository.deleteBySessionId(session.getId());
+        }
+        chatSessionRepository.deleteAll(sessions);
+
         userRepository.deleteById(id);
     }
 }

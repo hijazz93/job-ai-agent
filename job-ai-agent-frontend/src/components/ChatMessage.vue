@@ -160,7 +160,9 @@ const stepSummary = computed(() => {
 })
 
 const files = computed(() => {
-  const content = props.message.content || ''
+  // 同时扫描最终回复内容和执行过程日志，避免工具生成的文件路径遗漏
+  const content = (props.message.content || '') + '\n' +
+    ((props.message.processSteps || []).join('\n'))
   const files = []
   
   // PDF files

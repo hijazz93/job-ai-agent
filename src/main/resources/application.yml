@@ -34,6 +34,11 @@ spring:
               url: http://localhost:8127
 
 
+# 知识库文档上传路径（与 classpath:document/ 对应，开发环境指向源码目录）
+document:
+  upload:
+    path: src/main/resources/document
+
 server:
   port: 8123
   servlet:

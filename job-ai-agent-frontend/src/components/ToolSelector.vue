@@ -470,7 +470,7 @@ function retryUpload() {
   gap: 4px;
   padding: 3px 8px;
   border-radius: var(--radius-full);
-  background: var(--bg-card);
+  background: var(--bg-tertiary);
   border: 1px solid var(--border-primary);
   color: var(--text-secondary);
   font-size: 12px;
@@ -482,14 +482,14 @@ function retryUpload() {
 }
 
 .tool-chip:hover {
-  background: var(--bg-card-hover);
+  background: var(--bg-elevated);
   border-color: var(--border-secondary);
 }
 
 .tool-chip-parse {
   border-color: var(--accent-primary);
   color: var(--accent-primary);
-  background: var(--bg-active);
+  background: rgba(138, 180, 248, 0.12);
 }
 
 .tool-chip-close {
@@ -544,10 +544,10 @@ function retryUpload() {
   left: -8px;
   width: 300px;
   max-height: 420px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
   z-index: 300;
   overflow: hidden;
   display: flex;
@@ -558,6 +558,7 @@ function retryUpload() {
   padding: 12px 14px 8px;
   border-bottom: 1px solid var(--border-primary);
   flex-shrink: 0;
+  background: var(--bg-secondary);
 }
 
 .tool-panel-title {
@@ -598,11 +599,11 @@ function retryUpload() {
 }
 
 .tool-item:hover {
-  background: var(--bg-hover);
+  background: var(--bg-tertiary);
 }
 
 .tool-item.selected {
-  background: var(--bg-active);
+  background: rgba(138, 180, 248, 0.1);
   border-color: var(--accent-primary);
 }
 

@@ -1,7 +1,9 @@
 package com.hjz.jobaiagent.controller;
 
 import com.hjz.jobaiagent.constant.FileConstant;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,6 +40,9 @@ public class DocumentUploadController {
 
     @Value("${document.upload.path:tmp}")
     private String uploadPath;
+
+    @Resource
+    private VectorStore vectorStore;
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -121,6 +126,21 @@ public class DocumentUploadController {
             uploadHistory.put(documentId, docInfo);
 
             log.info("文档上传成功：{} -> {}", originalFilename, uniqueFileName);
+
+            // 自动索引到向量存储，使 RAG 知识库立即可检索
+            try {
+                String content = parseFileContent(targetPath.toFile());
+                if (content != null && !content.isBlank()) {
+                    org.springframework.ai.document.Document aiDoc =
+                            new org.springframework.ai.document.Document(content);
+                    aiDoc.getMetadata().put("filename", uniqueFileName);
+                    aiDoc.getMetadata().put("originalName", originalFilename);
+                    vectorStore.add(List.of(aiDoc));
+                    log.info("文档已索引到向量存储：{}", uniqueFileName);
+                }
+            } catch (Exception e) {
+                log.warn("文档索引到向量存储失败（文件已保存，RAG 可能需重启生效）：{}", e.getMessage());
+            }
 
             response.put("success", true);
             response.put("message", "文档上传成功");

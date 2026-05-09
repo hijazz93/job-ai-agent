@@ -26,28 +26,35 @@ public class WebSearchTool {
         this.apiKey = apiKey;
     }
 
-    @Tool(description = "Search for information from Baidu Search Engine")
+    @Tool(description = "使用百度搜索引擎查找信息")
     public String searchWeb(
-            @ToolParam(description = "Search query keyword") String query) {
+            @ToolParam(description = "搜索关键词") String query) {
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("q", query);
         paramMap.put("api_key", apiKey);
         paramMap.put("engine", "baidu");
         try {
             String response = HttpUtil.get(SEARCH_API_URL, paramMap);
-            // 取出返回结果的前 5 条
             JSONObject jsonObject = JSONUtil.parseObj(response);
+
+            // 检查 API 是否返回错误
+            if (jsonObject.containsKey("error")) {
+                return "百度搜索失败，API 返回错误：" + jsonObject.getStr("error");
+            }
+
             // 提取 organic_results 部分
             JSONArray organicResults = jsonObject.getJSONArray("organic_results");
-            List<Object> objects = organicResults.subList(0, 5);
-            // 拼接搜索结果为字符串
-            String result = objects.stream().map(obj -> {
-                JSONObject tmpJSONObject = (JSONObject) obj;
-                return tmpJSONObject.toString();
-            }).collect(Collectors.joining(","));
+            if (organicResults == null || organicResults.isEmpty()) {
+                return "未搜索到相关结果（关键词：" + query + "）";
+            }
+
+            int count = Math.min(organicResults.size(), 5);
+            List<Object> objects = organicResults.subList(0, count);
+            String result = objects.stream().map(Object::toString)
+                    .collect(Collectors.joining("\n"));
             return result;
         } catch (Exception e) {
-            return "Error searching Baidu: " + e.getMessage();
+            return "百度搜索出错: " + e.getMessage();
         }
     }
 }
